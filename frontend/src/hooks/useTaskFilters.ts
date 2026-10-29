@@ -49,12 +49,16 @@ export function useTaskFilters(): {
   // The last search text this hook knows the URL to have. Distinguishes our own URL writes from external changes.
   const appliedSearch = useRef(filters.search ?? '');
 
+  // Runs once the input has settled (input === debounced value). It also watches the input itself: after a Reset the
+  // input can go 'x' → '' → 'x' within one debounce window, leaving the debounced value unchanged at 'x'; keyed on the
+  // debounced value alone, that retyped search would never reach the URL.
   useEffect(() => {
+    if (debouncedSearch !== searchInput) return;
     const next = debouncedSearch.trim();
     if (next === appliedSearch.current) return;
     appliedSearch.current = next;
     updateRef.current({ search: next || undefined });
-  }, [debouncedSearch]);
+  }, [debouncedSearch, searchInput]);
 
   // External URL change (Reset button, browser back): mirror it into the input.
   useEffect(() => {

@@ -52,6 +52,19 @@ describe('useTaskFilters', () => {
     expect(nav.query).toBe('');
   });
 
+  it('retyping the previous search right after Reset applies it again', () => {
+    // Found by the e2e suite: the debounced value never left 'repo' (it went repo → '' → repo inside one window), so
+    // the effect keyed on it did not run and the typed search was silently dropped.
+    const { result } = setup('search=repo');
+    act(() => result.current.reset());
+    act(() => void vi.advanceTimersByTime(50));
+    act(() => result.current.setSearchInput('repo'));
+    act(() => void vi.advanceTimersByTime(1000));
+
+    expect(result.current.searchInput).toBe('repo');
+    expect(nav.query).toBe('search=repo');
+  });
+
   it('mirrors an external URL change into the search input', () => {
     const { result, rerender } = setup('search=old');
     expect(result.current.searchInput).toBe('old');
