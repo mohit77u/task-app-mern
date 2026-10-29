@@ -53,7 +53,7 @@ describe('useTaskFilters', () => {
   });
 
   it('retyping the previous search right after Reset applies it again', () => {
-    // Found by the e2e suite: the debounced value never left 'repo' (it went repo → '' → repo inside one window), so
+    // Found in browser testing: the debounced value never left 'repo' (it went repo → '' → repo inside one window), so
     // the effect keyed on it did not run and the typed search was silently dropped.
     const { result } = setup('search=repo');
     act(() => result.current.reset());
