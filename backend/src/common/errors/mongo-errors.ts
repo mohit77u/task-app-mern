@@ -4,7 +4,7 @@ import { AppException } from './app.exception';
 /** MongoServerError code for a unique-index violation. */
 const DUPLICATE_KEY = 11000;
 
-function hasDuplicateKeyCode(error: unknown): boolean {
+export function hasDuplicateKeyCode(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&

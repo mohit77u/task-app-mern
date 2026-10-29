@@ -1,6 +1,7 @@
 import type { Types } from 'mongoose';
 import { RoleCode } from '../../common/enums/role-code';
 import { TaskStatus } from '../../common/enums/task-status';
+import { hasDuplicateKeyCode } from '../../common/errors/mongo-errors';
 import { withTransaction } from '../../common/db/with-transaction';
 import type { Env } from '../../config/env.validation';
 import {
@@ -54,8 +55,15 @@ export async function seed(env: Env): Promise<SeedResult> {
   for (const seedRole of SEED_ROLES) {
     let role = await RoleModel.findOne({ code: seedRole.code });
     if (!role) {
-      role = await RoleModel.create(seedRole);
-      created.roles += 1;
+      try {
+        role = await RoleModel.create(seedRole);
+        created.roles += 1;
+      } catch (error) {
+        // An overlapping run won the race; use its row and do not count it as ours.
+        if (!hasDuplicateKeyCode(error)) throw error;
+        role = await RoleModel.findOne({ code: seedRole.code });
+        if (!role) throw error;
+      }
     }
     roleIds.set(seedRole.code, role._id);
   }
@@ -67,22 +75,34 @@ export async function seed(env: Env): Promise<SeedResult> {
       userIds.set(demo.email, existing._id);
       continue;
     }
-    const user = await UserModel.create({
-      name: demo.name,
-      email: demo.email,
-      phone: demo.phone,
-      isDefault: true,
-      roleId: roleIds.get(demo.role),
-      passwordHash: await hashPassword(
-        demo.role === RoleCode.ADMIN ? passwords.admin : passwords.employee,
-      ),
-    });
+    let user;
+    let wasCreated = true;
+    try {
+      user = await UserModel.create({
+        name: demo.name,
+        email: demo.email,
+        phone: demo.phone,
+        isDefault: true,
+        roleId: roleIds.get(demo.role),
+        passwordHash: await hashPassword(
+          demo.role === RoleCode.ADMIN ? passwords.admin : passwords.employee,
+        ),
+      });
+    } catch (error) {
+      // An overlapping run won the race; keep its row untouched and do not count it.
+      if (!hasDuplicateKeyCode(error)) throw error;
+      user = await UserModel.findOne({ email: demo.email });
+      if (!user) throw error;
+      wasCreated = false;
+    }
     userIds.set(demo.email, user._id);
-    created.users += 1;
+    if (wasCreated) created.users += 1;
   }
 
   const adminId = userIds.get(DEMO_USERS[0].email)!;
   for (const sample of SAMPLE_TASKS) {
+    // Concurrent seed runs are unsupported for sample tasks (no unique key on title): the seed is meant to be run
+    // once, manually. TaskModel queries are unfiltered, so soft-deleted tasks count as existing.
     if (await TaskModel.exists({ title: sample.title })) continue;
     const assigneeId = userIds.get(sample.assignee)!;
     await withTransaction(async (session) => {

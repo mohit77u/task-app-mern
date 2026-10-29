@@ -162,5 +162,66 @@ describe('seed', () => {
       );
       expect(existing!.passwordHash).toBe('old-hash');
     }, 60_000);
+
+    it('survives a duplicate-key race on a user and a role without counting them', async () => {
+      const roleCreate = RoleModel.create.bind(RoleModel);
+      const userCreate = UserModel.create.bind(UserModel);
+      let roleRaced = false;
+      let userRaced = false;
+      const roleSpy = jest
+        .spyOn(RoleModel, 'create')
+        .mockImplementation((async (...args: unknown[]) => {
+          if (!roleRaced) {
+            roleRaced = true;
+            await RoleModel.collection.insertOne({
+              code: 'ADMIN',
+              name: 'Raced',
+            });
+          }
+          return (roleCreate as (...a: unknown[]) => unknown)(...args);
+        }) as never);
+      const userSpy = jest
+        .spyOn(UserModel, 'create')
+        .mockImplementation((async (...args: unknown[]) => {
+          const doc = args[0] as { email?: string; roleId?: unknown };
+          if (!userRaced && doc.email === 'admin@taskapp.dev') {
+            userRaced = true;
+            await UserModel.collection.insertOne({
+              name: 'Raced',
+              email: 'admin@taskapp.dev',
+              passwordHash: 'raced-hash',
+              roleId: doc.roleId,
+            });
+          }
+          return (userCreate as (...a: unknown[]) => unknown)(...args);
+        }) as never);
+      try {
+        const result = await seed(testEnv());
+        expect(result.created).toEqual({
+          roles: 1,
+          users: 4,
+          tasks: SAMPLE_TASKS.length,
+        });
+      } finally {
+        roleSpy.mockRestore();
+        userSpy.mockRestore();
+      }
+      expect(roleRaced && userRaced).toBe(true);
+      expect(await RoleModel.countDocuments({ code: 'ADMIN' })).toBe(1);
+      const raced = await UserModel.findOne({ email: 'admin@taskapp.dev' });
+      expect(raced).toMatchObject({
+        name: 'Raced',
+        passwordHash: 'raced-hash',
+      });
+    }, 60_000);
+
+    it('does not re-create a soft-deleted sample task', async () => {
+      await seed(testEnv());
+      const title = SAMPLE_TASKS[0].title;
+      await TaskModel.updateOne({ title }, { deletedAt: new Date() });
+      const again = await seed(testEnv());
+      expect(again.created.tasks).toBe(0);
+      expect(await TaskModel.countDocuments({ title })).toBe(1);
+    }, 60_000);
   });
 });
