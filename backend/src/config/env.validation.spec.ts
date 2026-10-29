@@ -160,4 +160,14 @@ describe('validateEnv', () => {
       validateEnv({ ...validBase, SEED_EMPLOYEE_PASSWORD: 'short' }),
     ).toThrow(/SEED_EMPLOYEE_PASSWORD/);
   });
+
+  it('treats empty seed passwords as unset', () => {
+    const env = validateEnv({
+      ...validBase,
+      SEED_ADMIN_PASSWORD: '',
+      SEED_EMPLOYEE_PASSWORD: '',
+    });
+    expect(env.SEED_ADMIN_PASSWORD).toBeUndefined();
+    expect(env.SEED_EMPLOYEE_PASSWORD).toBeUndefined();
+  });
 });

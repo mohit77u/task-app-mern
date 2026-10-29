@@ -8,6 +8,9 @@ const bool = (defaultValue: boolean): z.ZodType<boolean> =>
     z.boolean(),
   );
 
+/** Empty-string env values (e.g. `SEED_ADMIN_PASSWORD=`) count as unset. */
+const emptyAsUnset = (v: unknown): unknown => (v === '' ? undefined : v);
+
 /** The value shipped in .env.example. A deploy that still carries it would sign tokens with a public secret. */
 export const JWT_SECRET_PLACEHOLDER =
   'replace-with-a-random-string-of-at-least-32-characters';
@@ -79,8 +82,14 @@ export const envSchema = z
     THROTTLING_ENABLED: bool(true),
 
     // Read only by the seed script; unset keeps the documented demo passwords.
-    SEED_ADMIN_PASSWORD: z.string().min(8).optional(),
-    SEED_EMPLOYEE_PASSWORD: z.string().min(8).optional(),
+    SEED_ADMIN_PASSWORD: z.preprocess(
+      emptyAsUnset,
+      z.string().min(8).optional(),
+    ),
+    SEED_EMPLOYEE_PASSWORD: z.preprocess(
+      emptyAsUnset,
+      z.string().min(8).optional(),
+    ),
   })
   .superRefine((env, ctx) => {
     if (env.COOKIE_SAMESITE === 'none' && !env.COOKIE_SECURE) {
