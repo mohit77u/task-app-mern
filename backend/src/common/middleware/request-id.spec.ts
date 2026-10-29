@@ -23,7 +23,17 @@ describe('requestId', () => {
     expect(ok.body.id).toBe('abc-123');
     const big = await request(app())
       .get('/')
-      .set('X-Request-Id', 'x'.repeat(101));
-    expect(big.body.id).not.toBe('x'.repeat(101));
+      .set('X-Request-Id', 'x'.repeat(129));
+    expect(big.body.id).not.toBe('x'.repeat(129));
+  });
+
+  it.each([
+    'has space',
+    'semi;colon',
+    'new\u0020line'.replace(' ', '!'),
+    'x'.repeat(129),
+  ])('replaces a non-conforming incoming id %p', async (bad) => {
+    const res = await request(app()).get('/').set('X-Request-Id', bad);
+    expect(res.body.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 });

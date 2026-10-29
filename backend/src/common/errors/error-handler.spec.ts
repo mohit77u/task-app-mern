@@ -35,6 +35,10 @@ const bodyShape = {
 };
 
 describe('errorHandler', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('renders an AppException with the full contract body', async () => {
     const res = await request(
       buildApp(() => {
@@ -73,7 +77,6 @@ describe('errorHandler', () => {
     expect(JSON.stringify(res.body)).not.toContain('secret detail');
     expect(spy).toHaveBeenCalledTimes(1);
     expect(String(spy.mock.calls[0][0])).toContain(res.body.requestId);
-    spy.mockRestore();
   });
 
   it('maps a duplicate-key error (11000) to 409 CONFLICT', async () => {

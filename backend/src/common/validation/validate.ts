@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import { AppException, ApiErrorDetail } from '../errors/app.exception';
+import { NOT_FOUND_PARAM } from './primitives';
 
 export type ValidationSource = 'body' | 'query' | 'params';
 
@@ -30,6 +31,17 @@ export function validate<T>(
     const input: unknown = source === 'body' ? (req.body ?? {}) : req[source];
     const result = strict.safeParse(input);
     if (!result.success) {
+      const missing = result.error.issues.some(
+        (i) =>
+          i.code === 'custom' &&
+          (i.params as Record<string, unknown> | undefined)?.[
+            NOT_FOUND_PARAM
+          ] === true,
+      );
+      if (missing) {
+        next(AppException.notFound());
+        return;
+      }
       next(AppException.validation(toDetails(result.error)));
       return;
     }

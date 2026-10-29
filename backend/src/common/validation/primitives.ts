@@ -6,6 +6,17 @@ export const objectIdString = z
   .string()
   .refine((v) => parseObjectId(v) !== null, 'Invalid id');
 
+/** Marker `validate` looks for in issue params: a malformed id in a PATH means "no such record" (404), not a 422. */
+export const NOT_FOUND_PARAM = 'notFound';
+
+/** Path-param id: malformed values make `validate(..., 'params')` answer 404 NOT_FOUND. Use `objectIdString` in bodies/queries. */
+export const objectIdParam = z
+  .string()
+  .refine((v) => parseObjectId(v) !== null, {
+    message: 'Invalid id',
+    params: { [NOT_FOUND_PARAM]: true },
+  });
+
 /** Calendar date `YYYY-MM-DD`, kept as a string so no timezone shift can occur. */
 export const dateOnlyString = z
   .string()

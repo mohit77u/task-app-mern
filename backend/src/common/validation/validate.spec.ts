@@ -4,7 +4,12 @@ import { z } from 'zod';
 import { errorHandler } from '../errors/error-handler';
 import { requestId } from '../middleware/request-id';
 import { validate } from './validate';
-import { dateOnlyString, emailString, objectIdString } from './primitives';
+import {
+  dateOnlyString,
+  emailString,
+  objectIdParam,
+  objectIdString,
+} from './primitives';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -23,7 +28,7 @@ function app(): express.Express {
   });
   a.get(
     '/p/:id',
-    validate(z.object({ id: objectIdString }), 'params'),
+    validate(z.object({ id: objectIdParam }), 'params'),
     (_req, res) => {
       res.json(res.locals.params);
     },
@@ -64,10 +69,46 @@ describe('validate', () => {
     expect(res.body.details[0].field).toBe('name');
   });
 
-  it('rejects a malformed id param', async () => {
-    const res = await request(app()).get('/p/123');
+  it('passes a valid path id on res.locals.params', async () => {
+    const id = '507f1f77bcf86cd799439011';
+    const res = await request(app()).get(`/p/${id}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ id });
+  });
+
+  it.each(['123', 'not-an-id', '123456789012'])(
+    'answers 404 NOT_FOUND for malformed path id %s',
+    async (bad) => {
+      const res = await request(app()).get(`/p/${bad}`);
+      expect(res.status).toBe(404);
+      expect(res.body).toEqual({
+        statusCode: 404,
+        code: 'NOT_FOUND',
+        message: expect.any(String),
+        details: [],
+        requestId: expect.any(String),
+        timestamp: expect.any(String),
+        path: `/p/${bad}`,
+      });
+    },
+  );
+
+  it('answers 422 with the field for a malformed id in a body', async () => {
+    const a = express();
+    a.use(requestId);
+    a.use(express.json());
+    a.post(
+      '/t',
+      validate(z.object({ assigneeId: objectIdString }), 'body'),
+      (_q, r) => {
+        r.json({});
+      },
+    );
+    a.use(errorHandler);
+    const res = await request(a).post('/t').send({ assigneeId: '123' });
     expect(res.status).toBe(422);
-    expect(res.body.details[0].field).toBe('id');
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.body.details[0].field).toBe('assigneeId');
   });
 });
 
