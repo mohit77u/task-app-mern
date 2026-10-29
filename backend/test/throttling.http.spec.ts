@@ -56,6 +56,35 @@ describe('throttling over HTTP (THROTTLING_ENABLED=true)', () => {
     await request(app).get('/api/health').expect(200);
   });
 
+  it('signed-in traffic is limited per user, not per IP: user A is cut off at 101 while user B (same IP) is not', async () => {
+    const app = createApp(env);
+    const [a, b] = await Promise.all([
+      signIn(app, DEMO.priya),
+      signIn(app, DEMO.rahul),
+    ]);
+    for (let i = 0; i < 100; i += 1) {
+      await a.agent.get('/api/v1/dashboard').expect(200);
+    }
+    const limited = await a.agent.get('/api/v1/dashboard').expect(429);
+    expectErrorBody(limited.body, 429, 'RATE_LIMITED');
+    expect(limited.headers['retry-after']).toBeDefined();
+    await b.agent.get('/api/v1/dashboard').expect(200);
+    // The user bucket is separate from the anonymous IP bucket: the same client can still reach the auth routes.
+    await request(app).post('/api/v1/auth/logout').expect(204);
+  });
+
+  it('anonymous traffic to the auth routes is limited per IP at 100/min', async () => {
+    const app = createApp(env);
+    for (let i = 0; i < 100; i += 1) {
+      await request(app).post('/api/v1/auth/logout').expect(204);
+    }
+    const limited = await request(app).post('/api/v1/auth/logout').expect(429);
+    expectErrorBody(limited.body, 429, 'RATE_LIMITED');
+    // An unknown auth path shares the same IP bucket.
+    await request(app).get('/api/v1/auth/nope').expect(429);
+    await request(app).get('/api/health').expect(200);
+  });
+
   it('refresh is limited to 30/min per refresh cookie', async () => {
     const app = createApp(env);
     const refresh = (token: string): request.Test =>

@@ -6,8 +6,10 @@ import { readCookie, REFRESH_COOKIE } from '../../security/cookies';
 import { AppException } from '../errors/app.exception';
 
 export interface RateLimits {
-  /** 100/min per user when signed in, otherwise per IP. */
-  global: RequestHandler;
+  /** 100/min per IP for traffic without a session: the auth routes and unknown paths. Never in front of `jwtAuth`ed routes. */
+  anonymous: RequestHandler;
+  /** 100/min per user. Must run after `jwtAuth`, so behind a shared proxy IP each user still has their own bucket. */
+  authenticated: RequestHandler;
   /** 5/min per normalised email (falls back to IP). Must run after `express.json()`. */
   login: RequestHandler;
   /** 30/min per refresh cookie (falls back to IP). Must run after `cookieParser()`. */
@@ -29,11 +31,18 @@ export function userKey(req: Request): string {
   return req.user ? `user:${req.user.id}` : ipKey(req);
 }
 
-/** Reads the email from the already-parsed JSON body, so the login limiter must sit after `express.json()`. */
+function sha256Hex(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+/**
+ * Reads the email from the already-parsed JSON body, so the login limiter must sit after `express.json()`. Hashed so
+ * the store holds a fixed-size key rather than whatever (up to 100kb) the client sent.
+ */
 export function loginKey(req: Request): string {
   const email: unknown = (req.body as { email?: unknown } | undefined)?.email;
   if (typeof email !== 'string' || email.trim() === '') return ipKey(req);
-  return `login:${email.trim().toLowerCase()}`;
+  return `login:${sha256Hex(email.trim().toLowerCase()).slice(0, 32)}`;
 }
 
 /** Hashed so the refresh token itself never sits in the limiter's store. */
@@ -42,8 +51,7 @@ export function refreshKey(
   fallbackKey: string,
 ): string {
   if (!token) return fallbackKey;
-  const digest = createHash('sha256').update(token).digest('hex');
-  return `refresh:${digest.slice(0, 16)}`;
+  return `refresh:${sha256Hex(token).slice(0, 16)}`;
 }
 
 /** Seconds until the caller's window resets, at least 1. */
@@ -79,14 +87,16 @@ function limiter(
 export function rateLimits(env: Env): RateLimits {
   if (!env.THROTTLING_ENABLED) {
     return {
-      global: passThrough,
+      anonymous: passThrough,
+      authenticated: passThrough,
       login: passThrough,
       refresh: passThrough,
       userAction: passThrough,
     };
   }
   return {
-    global: limiter(100, userKey),
+    anonymous: limiter(100, ipKey),
+    authenticated: limiter(100, userKey),
     login: limiter(5, loginKey),
     refresh: limiter(30, (req) =>
       refreshKey(readCookie(req, REFRESH_COOKIE), ipKey(req)),

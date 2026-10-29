@@ -4,7 +4,7 @@ import request from 'supertest';
 import { testEnv } from '../../../test/mongo';
 import { RoleCode } from '../enums/role-code';
 import { errorHandler } from '../errors/error-handler';
-import { rateLimits, refreshKey } from './rate-limits';
+import { loginKey, rateLimits, refreshKey } from './rate-limits';
 import { requestId } from './request-id';
 
 /** Sets `req.user` from an `x-user` header so the user-keyed limiters can be driven without a database. */
@@ -94,13 +94,35 @@ describe('rateLimits', () => {
     expect(await hit(app, 1, as('user-b'))).toEqual([200]);
   });
 
-  it('global: 100 per minute, per user when signed in, otherwise per IP', async () => {
-    const app = appWith(enabled().global);
+  it('anonymous: 100 per minute per IP, regardless of any user on the request', async () => {
+    const app = appWith(enabled().anonymous);
     const statuses = await hit(app, 101);
     expect(statuses.slice(0, 100).every((s) => s === 200)).toBe(true);
     expect(statuses[100]).toBe(429);
-    // A signed-in user has a bucket of their own.
-    expect(await hit(app, 1, (t) => t.set('x-user', 'user-a'))).toEqual([200]);
+    expect(await hit(app, 1, (t) => t.set('x-user', 'user-a'))).toEqual([429]);
+  });
+
+  // Unit check of the key only; test/throttling.http.spec.ts proves it is mounted behind jwtAuth in the real app.
+  it('authenticated: 100 per minute per user id', async () => {
+    const app = appWith(enabled().authenticated);
+    const as = (id: string) => (t: request.Test) => t.set('x-user', id);
+    const statuses = await hit(app, 101, as('user-a'));
+    expect(statuses.slice(0, 100).every((s) => s === 200)).toBe(true);
+    expect(statuses[100]).toBe(429);
+    expect(await hit(app, 1, as('user-b'))).toEqual([200]);
+  });
+
+  it('the login key is a hash of the normalised email, never the raw email', () => {
+    const fake = (email: unknown) =>
+      ({ body: { email }, ip: '1.2.3.4' }) as never;
+    const key = loginKey(fake('  Someone@Example.COM '));
+    expect(key).toMatch(/^login:[0-9a-f]{32}$/);
+    expect(key).not.toContain('someone');
+    expect(loginKey(fake('someone@example.com'))).toBe(key);
+    expect(loginKey(fake('x'.repeat(100_000)))).toHaveLength(
+      'login:'.length + 32,
+    );
+    expect(loginKey(fake(undefined))).toBe('ip:1.2.3.4');
   });
 
   it('THROTTLING_ENABLED=false turns every limiter into a pass-through', async () => {

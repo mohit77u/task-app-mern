@@ -22,12 +22,15 @@ import { usersRouter } from './modules/users/users.routes';
 
 /**
  * `/api/v1`. Auth routes come first because login, refresh and logout must work without an access token (`/auth/me`
- * carries its own `jwtAuth`). Everything mounted after `jwtAuth` is protected by default, including unknown paths.
+ * carries its own `jwtAuth`); they sit behind the per-IP limiter. Everything mounted after `jwtAuth` is protected by
+ * default, including unknown paths (an anonymous caller gets 401, a signed-in one 404), and is limited per user: behind
+ * a proxy many users share an IP, so an IP-keyed limit must never sit in front of authenticated traffic.
  */
 function v1Router(env: Env, services: Services, limits: RateLimits): Router {
   const router = Router();
   router.use(
     '/auth',
+    limits.anonymous,
     authRouter(env, {
       service: services.auth,
       loginLimiter: limits.login,
@@ -35,6 +38,7 @@ function v1Router(env: Env, services: Services, limits: RateLimits): Router {
     }),
   );
   router.use(jwtAuth(env));
+  router.use(limits.authenticated);
   router.use('/users', usersRouter(services.users));
   router.use('/roles', rolesRouter(services.users));
   router.use(
@@ -44,6 +48,8 @@ function v1Router(env: Env, services: Services, limits: RateLimits): Router {
     commentsRouter(services.comments, limits.userAction),
   );
   router.use('/dashboard', dashboardRouter(services.dashboard));
+  // Answered here so a /api/v1 request never reaches the app-level anonymous limiter as well.
+  router.use(notFoundHandler);
   return router;
 }
 
@@ -79,11 +85,12 @@ export function createApp(env: Env): Express {
   app.use(cookieParser());
   app.use(express.json({ limit: '100kb' }));
   app.use(originCheck(env.FRONTEND_ORIGINS));
-  // Public and ahead of the global limiter: health checks and uptime pings must never be throttled.
+  // Public and outside every limiter: health checks and uptime pings must never be throttled.
   app.use('/api', healthRouter());
-  // After the body parser and cookie parser, so the route limiters below can key on the email and refresh cookie.
-  app.use(limits.global);
+  // After the body parser and cookie parser, so the route limiters inside can key on the email and refresh cookie.
   app.use('/api/v1', v1Router(env, services, limits));
+  // Anything else is an unknown path from an anonymous client: limited per IP, then 404.
+  app.use(limits.anonymous);
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
