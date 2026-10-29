@@ -8,10 +8,11 @@
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "dev:memory": "tsx scripts/dev-memory.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main",
     "test": "jest",
-    "lint": "eslint \"{src,test}/**/*.ts\"",
+    "lint": "eslint \"{src,test,scripts}/**/*.ts\"",
     "seed": "tsx src/database/seed/run-seed.ts",
     "seed:prod": "node dist/database/seed/run-seed.js"
   },
