@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
-import type { Env } from '../src/config/env.validation';
+import { createApp } from '../src/app';
 import { RefreshTokenModel, RoleModel, UserModel } from '../src/models';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '../src/security/cookies';
 import { hashPassword } from '../src/security/password';
@@ -26,19 +26,12 @@ function cookieValue(res: request.Response, name: string): string | undefined {
   return raw?.split(';')[0].slice(name.length + 1);
 }
 
-// Un-skipped in Task 9, once src/app.ts provides createApp.
-describe.skip('auth over HTTP', () => {
+describe('auth over HTTP', () => {
   const env = testEnv();
-  let createApp: (env: Env) => Express;
   let app: Express;
   let userId: string;
 
   beforeAll(async () => {
-    // Loaded lazily so this file type-checks before src/app.ts exists.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    ({ createApp } = require('../src/app') as {
-      createApp: (env: Env) => Express;
-    });
     await startTestDb();
     app = createApp(env);
   });
