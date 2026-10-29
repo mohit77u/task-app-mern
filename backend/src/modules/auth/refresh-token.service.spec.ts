@@ -241,4 +241,18 @@ describe('RefreshTokenService', () => {
     );
     expect(remaining).toHaveLength(5);
   });
+
+  it('revokeAllForUser revokes every live token of that user only', async () => {
+    const a = await service.issueForLogin(userId, meta);
+    const b = await service.issueForLogin(userId, meta);
+    const other = new Types.ObjectId().toHexString();
+    const c = await service.issueForLogin(other, meta);
+
+    await service.revokeAllForUser(userId);
+
+    expect((await rowOf(a)).revokedAt).not.toBeNull();
+    expect((await rowOf(b)).revokedAt).not.toBeNull();
+    expect((await rowOf(c)).revokedAt).toBeNull();
+    expect((await service.rotate(a, meta)).kind).toBe('reuse');
+  });
 });

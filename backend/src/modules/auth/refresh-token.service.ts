@@ -90,6 +90,14 @@ export class RefreshTokenService {
     await this.revokeFamily(row.familyId, new Date(this.now()));
   }
 
+  /** Password change or similar: ends every session of the user, across all token families. */
+  async revokeAllForUser(userId: string): Promise<void> {
+    await RefreshTokenModel.updateMany(
+      { userId: new Types.ObjectId(userId), revokedAt: null },
+      { $set: { revokedAt: new Date(this.now()) } },
+    );
+  }
+
   /**
    * A revoked token was presented. Inside the grace window after a rotation, and while the session it was rotated into
    * is still alive, it is a concurrent refresh from another tab: answer `grace`. Anything else means a stolen token is
