@@ -13,3 +13,13 @@ globalThis.Request = class extends NativeRequest {
 
 // Vitest globals are off, so Testing Library's automatic cleanup is not registered; unmount between tests ourselves.
 afterEach(() => cleanup());
+
+// Radix primitives (Select, Dialog) rely on browser APIs jsdom lacks.
+globalThis.ResizeObserver = class {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+};
+Element.prototype.hasPointerCapture = (): boolean => false;
+Element.prototype.releasePointerCapture = (): void => {};
+Element.prototype.scrollIntoView = (): void => {};

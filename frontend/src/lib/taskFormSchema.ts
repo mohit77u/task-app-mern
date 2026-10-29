@@ -15,7 +15,7 @@ export function makeTaskSchema(initialDueDate?: string, today: () => string = to
       .regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a due date')
       // ISO date strings compare correctly as text; typed dates bypass the picker's `min`, so check here too.
       .refine((value) => value === initialDueDate || value >= today(), "Due date can't be in the past"),
-    // Kept as a string because the Select works with strings; converted to a number on submit.
+    // An ObjectId string, sent to the API as is.
     assigneeId: z.string().min(1, 'Choose an employee'),
   });
 }

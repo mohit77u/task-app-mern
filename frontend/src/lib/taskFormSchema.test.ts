@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeTaskSchema } from '@/lib/taskFormSchema';
 
-const base = { title: 't', description: 'd', priority: 'LOW', assigneeId: '1' };
+const base = { title: 't', description: 'd', priority: 'LOW', assigneeId: '65f1a2b3c4d5e6f708192a01' };
 const today = (): string => '2026-10-12';
 
 describe('task form due date', () => {
