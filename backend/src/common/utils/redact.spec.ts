@@ -11,6 +11,14 @@ describe('redactMongoUri', () => {
     expect(redacted).not.toContain('s3cret');
   });
 
+  it('is case-insensitive about the scheme', () => {
+    const redacted = redactMongoUri(
+      'bad uri MONGODB+SRV://User:S3cret@Cluster0.example.net/app',
+    );
+    expect(redacted).not.toContain('S3cret');
+    expect(redacted).toBe('bad uri mongodb+srv://<redacted>');
+  });
+
   it('leaves messages without a URI untouched', () => {
     expect(redactMongoUri('querySrv ENOTFOUND')).toBe('querySrv ENOTFOUND');
   });

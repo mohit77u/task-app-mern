@@ -200,6 +200,13 @@ describe('reviewer workflow over HTTP', () => {
     let arrived = 0;
     let release!: () => void;
     const bothRead = new Promise<void>((resolve) => (release = resolve));
+    // If a regression stops the second request from reaching the write, open the barrier after 3 s and fail clearly
+    // below instead of hanging until the test timeout.
+    let barrierTimedOut = false;
+    const barrierTimer = setTimeout(() => {
+      barrierTimedOut = true;
+      release();
+    }, 3_000);
     jest.spyOn(TaskModel, 'findOneAndUpdate').mockImplementation(((
       ...args: Parameters<typeof TaskModel.findOneAndUpdate>
     ) => {
@@ -217,6 +224,12 @@ describe('reviewer workflow over HTTP', () => {
       transition(priya.agent, task.id, 'IN_PROGRESS'),
       transition(priya.agent, task.id, 'IN_PROGRESS'),
     ]);
+    clearTimeout(barrierTimer);
+    if (barrierTimedOut) {
+      throw new Error(
+        `Concurrency barrier timed out: only ${arrived} of 2 transitions reached the status write within 3 s`,
+      );
+    }
     const statuses = responses.map((r) => r.status).sort();
     expect(statuses).toEqual([200, 409]);
     const loser = responses.find((r) => r.status === 409)!;

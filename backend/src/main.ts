@@ -10,6 +10,9 @@ function errorMessage(error: unknown): string {
   return redactMongoUri(error instanceof Error ? error.message : String(error));
 }
 
+/** How long in-flight requests get to finish before the process exits anyway. */
+const SHUTDOWN_GRACE_MS = 10_000;
+
 /** Stops accepting connections, waits for in-flight requests, then closes the database connection. */
 function shutdownOn(server: Server): void {
   let closing = false;
@@ -17,6 +20,13 @@ function shutdownOn(server: Server): void {
     if (closing) return;
     closing = true;
     console.log(`${signal} received, shutting down`);
+    // A hung request (or keep-alive socket) must not stall the shutdown forever.
+    setTimeout(() => {
+      console.error(
+        `Shutdown took longer than ${SHUTDOWN_GRACE_MS} ms, exiting`,
+      );
+      process.exit(1);
+    }, SHUTDOWN_GRACE_MS).unref();
     server.close(() => {
       mongoose
         .disconnect()
@@ -40,6 +50,11 @@ async function main(): Promise<void> {
     console.log(
       `API listening on port ${env.PORT} (database: ${env.MONGODB_DB ?? 'from the connection string'})`,
     );
+  });
+  // E.g. EADDRINUSE: fail loudly instead of running with no listener.
+  server.on('error', (error) => {
+    console.error('Server error:', errorMessage(error));
+    process.exit(1);
   });
   shutdownOn(server);
 }
