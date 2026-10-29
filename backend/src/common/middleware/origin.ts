@@ -1,0 +1,24 @@
+import type { RequestHandler } from 'express';
+import { AppException } from '../errors/app.exception';
+
+const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+/**
+ * Defence in depth against CSRF on top of SameSite cookies: a browser always sends Origin on cross-site writes, so a
+ * write from an origin we do not know is refused. Requests without Origin (curl, server-to-server) carry no browser
+ * cookies and are not a CSRF vector.
+ */
+export function originCheck(allowedOrigins: string[]): RequestHandler {
+  return (req, _res, next) => {
+    const origin = req.headers.origin;
+    if (
+      STATE_CHANGING.has(req.method) &&
+      origin &&
+      !allowedOrigins.includes(origin)
+    ) {
+      next(AppException.forbidden('Cross-origin request not allowed'));
+      return;
+    }
+    next();
+  };
+}
