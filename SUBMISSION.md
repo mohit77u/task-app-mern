@@ -55,4 +55,4 @@ The video covers three parts: the three key decisions, the three features I did 
 2. **Real-time updates** (WebSocket or server-sent events) so a status change by one user appears for the other without a refresh.
 3. **Absolute session cap:** refresh tokens rotate but a session never expires; I would add a 30-day absolute limit and logout after 7 days of inactivity, tracked per token family.
 4. **Password reset and user deactivation** (an `isActive` flag instead of only soft delete). The reset flow needs email, so it comes together with item 1 of section 3.
-5. **CI pipeline** (GitLab CI) running lint and the automated tests on every push.
+5. **CI pipeline** (GitHub Actions) running lint and the automated tests on every push.

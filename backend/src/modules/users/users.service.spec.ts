@@ -197,6 +197,19 @@ describe('UsersService', () => {
       );
     });
 
+    it('refuses to change the email or password of a default (public demo) user, but allows other fields', async () => {
+      const u = await newEmployee();
+      await UserModel.updateOne({ _id: u.id }, { isDefault: true });
+      await expectConflict(
+        service.update(actor(), u.id, { password: 'Another@12345' }),
+      );
+      await expectConflict(
+        service.update(actor(), u.id, { email: 'changed@taskapp.dev' }),
+      );
+      const renamed = await service.update(actor(), u.id, { name: 'Renamed' });
+      expect(renamed.name).toBe('Renamed');
+    });
+
     it('answers 404 for a missing or deleted user', async () => {
       await expect(
         service.update(actor(), new Types.ObjectId().toHexString(), {

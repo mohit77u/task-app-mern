@@ -17,7 +17,7 @@ Do the steps in order. Names in `<angle brackets>` are values you choose or copy
 ## 2. Render (backend)
 
 1. New **Web Service** from the GitHub repo. Root directory `backend`, runtime Node, instance type Free.
-2. Build command `npm ci && npm run build`, start command `npm start` (runs `node dist/main`).
+2. Build command `npm ci --include=dev && npm run build` (Render sets `NODE_ENV=production` during the build, which would otherwise skip the TypeScript compiler), start command `npm start` (runs `node dist/main`).
 3. Health check path `/api/health`.
 4. Environment variables:
 
@@ -47,7 +47,7 @@ MONGODB_URI='<Atlas string>' MONGODB_DB=taskmanager_live JWT_ACCESS_SECRET='<sam
 FRONTEND_ORIGINS='https://<app>.vercel.app' npm run seed
 ```
 
-(Set `SEED_ADMIN_PASSWORD` / `SEED_EMPLOYEE_PASSWORD` first if you do not want the public demo passwords on the live data.) The seed is idempotent; running it twice does not duplicate users.
+(The login page lists the public demo passwords. If you set `SEED_ADMIN_PASSWORD` / `SEED_EMPLOYEE_PASSWORD` to private ones, the demo buttons on the login page will fill passwords that no longer work, so leave them unset for the submission.) The default accounts' email and password cannot be changed from the app, so visitors cannot lock the demo. The seed is idempotent; running it twice does not duplicate users.
 
 ## 4. Vercel (frontend)
 
@@ -71,6 +71,7 @@ FRONTEND_ORIGINS='https://<app>.vercel.app' npm run seed
 - [ ] DevTools → Application → Cookies: `access_token` and `refresh_token` are `HttpOnly`, `Secure`, `SameSite=Lax`, host-only (domain is the Vercel host).
 - [ ] A cross-origin state-changing request is refused:
   `curl -i -X POST https://<service>.onrender.com/api/v1/auth/logout -H 'Origin: https://evil.example'` → `403`.
+- [ ] Test on the production Vercel URL only: preview deployments have a different origin, so their writes return 403.
 - [ ] Cold start: after 15+ minutes idle, the first page load through Vercel is slow but succeeds (no error screen).
 
 ## If something fails
@@ -78,7 +79,7 @@ FRONTEND_ORIGINS='https://<app>.vercel.app' npm run seed
 | Symptom | Likely cause |
 |---|---|
 | Render service crashes at boot, log mentions environment | An insecure or missing production value (`COOKIE_SECURE`, non-`https` origin, placeholder secret, `TRUST_PROXY_HOPS` < 1) |
-| `/api/health` says `db: down` | Atlas Network Access does not allow `0.0.0.0/0`, or wrong `MONGODB_URI` |
+| `/api/health` returns 503 `SERVICE_UNAVAILABLE` | Atlas Network Access does not allow `0.0.0.0/0`, or wrong `MONGODB_URI` |
 | Vercel build fails with `BACKEND_URL ...` | Variable missing, has a trailing slash, or ends in `/api` |
 | Login works but you are signed out on reload | `FRONTEND_ORIGINS` does not match the Vercel URL exactly |
 | API calls return 404 on Vercel | `BACKEND_URL` was set after the build; redeploy |

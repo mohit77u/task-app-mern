@@ -127,8 +127,8 @@ export const envSchema = z
             'looks like the example placeholder or a hand-typed value; generate a random secret',
         });
       }
-      // Behind Render (and the Vercel proxy) zero hops makes every request look like it came from the proxy, so all
-      // users would share one rate-limit bucket.
+      // Behind Render zero hops makes every request look like it came from the proxy, so all users would share one
+      // rate-limit bucket. Through the Vercel proxy the client IP seen by Render is Vercel's, so per-IP limits are shared.
       if (env.TRUST_PROXY_HOPS < 1) {
         ctx.addIssue({
           code: 'custom',

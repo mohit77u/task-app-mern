@@ -116,6 +116,17 @@ export class UsersService {
     dto: UpdateUserBody,
   ): Promise<UserResponse> {
     const _id = this.parse(id);
+    if (dto.email !== undefined || dto.password !== undefined) {
+      // The default accounts' credentials are public (README, login page), so a visitor could otherwise lock everyone out.
+      const target = await UserModel.findOne(notDeleted({ _id }))
+        .select('isDefault')
+        .lean();
+      if (target?.isDefault) {
+        throw AppException.conflict(
+          'The email and password of a default account cannot be changed',
+        );
+      }
+    }
     const set: Partial<
       Pick<
         IUser,

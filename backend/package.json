@@ -6,6 +6,9 @@
   "author": "Mohit Singh",
   "license": "UNLICENSED",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "dev:memory": "tsx scripts/dev-memory.ts",

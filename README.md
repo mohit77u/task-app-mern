@@ -152,7 +152,7 @@ Create a **Web Service** from this GitHub repository:
 | Setting | Value |
 |---|---|
 | Root directory | `backend` |
-| Build command | `npm ci && npm run build` |
+| Build command | `npm ci --include=dev && npm run build` |
 | Start command | `npm start` |
 | Health check path | `/api/health` |
 | Instance type | Free |
@@ -209,6 +209,7 @@ Create a free monitor at UptimeRobot for `https://<your-service>.onrender.com/ap
 - Access token re-checked against the user record on every request, so deleting a user or changing a password signs them out immediately.
 - Refresh tokens are stored only as a hash, rotated on every use, and revoked together if an old one is replayed.
 - Strict CORS allow-list plus an `Origin` check on state-changing requests, `helmet`, request validation that rejects unknown fields, and rate limiting (login 5/min per email, 100/min per signed-in user).
+- The email and password of the default demo accounts cannot be changed from the app (they are public), so a visitor cannot lock the demo.
 - Unknown routes under `/api/v1` answer `401` to signed-out callers (authentication runs first) and `404` to signed-in ones.
 
 ## Known limitations
