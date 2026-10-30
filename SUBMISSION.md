@@ -3,7 +3,7 @@
 Author: Mohit Singh · mohiit77u@gmail.com
 
 ## 1. Working application and source code
-- Live app: <VERCEL_URL> (placeholder until the owner deploys) · API health: <RENDER_URL>/api/health
+- Live app: https://frontend-rho-nine-39.vercel.app · API health: https://backend-mohit77us-projects.vercel.app/api/health
 - Source: this repository (`frontend/`, `backend/`). Demo accounts: see README.
 - Stack: MongoDB Atlas + Mongoose, Express, React (Vite), Node.js.
 

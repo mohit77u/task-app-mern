@@ -8,8 +8,8 @@ Author: Mohit Singh
 
 | | |
 |---|---|
-| Live app (frontend, Vercel) | _add your Vercel URL after deploying_ |
-| Live API (backend, Vercel) | _add your backend URL after deploying_ (health check: `/api/health`) |
+| Live app (frontend, Vercel) | https://frontend-rho-nine-39.vercel.app |
+| Live API (backend, Vercel) | https://backend-mohit77us-projects.vercel.app (health check: `/api/health`) |
 | Database | MongoDB Atlas (free tier) |
 
 > On Vercel's serverless functions the first request after a quiet period is a little slower (cold start, the database connects). That is normal, not a bug.
