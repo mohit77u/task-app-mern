@@ -48,7 +48,7 @@ The video covers three parts: the three key decisions, the three features I did 
 3. **A dynamic roles and permissions system** (creating roles and assigning permissions from an admin screen). Roles are stored as data, but what each role may do lives in code (guards and the state machine). Two roles, Admin and Employee, fully cover the requirements, and a permissions engine would add a lot of complexity and risk for no requirement.
 
 ## 4. One limitation I would fix with one more day
-**Rate limiting is stored in memory.** Limits such as 5 login attempts per minute live inside the server process, so they reset when the server restarts or the free-tier instance sleeps, and with two instances each would keep its own counter (the real limit would double). With one more day I would move the limiter to a shared store (Redis or MongoDB) and add a test proving the counter survives a restart.
+**Rate limiting is stored in memory.** Limits such as 5 login attempts per minute live inside the server process, so they reset when the server restarts or a serverless instance is recycled, and with several instances (which serverless creates under load) each keeps its own counter, so the real limit is higher than 5. With one more day I would move the limiter to a shared store (Redis or MongoDB) and add a test proving the counter survives a restart.
 
 ## 5. What else I would build with one more day (in priority order)
 1. Shared rate-limit store (the limitation above).
