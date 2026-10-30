@@ -44,7 +44,7 @@ To test two roles at the same time, use a normal window for one and a **private/
 task-manager-mern/
   backend/    Express 5 + Mongoose API (src/, test/, scripts/)
   frontend/   React + Vite app (src/)
-  docs/       Design spec and implementation plan
+  docs/       Design spec, implementation plan, deploy runbook, AI usage note
 ```
 
 Backend layers: `routes → controllers → services → Mongoose models`. Controllers stay thin, business rules live in services and in one state-machine file (`backend/src/modules/tasks/task-state-machine.ts`). The API sends each task's `allowedTransitions`, so the UI never duplicates the rules.
@@ -173,7 +173,7 @@ TRUST_PROXY_HOPS=1
 THROTTLING_ENABLED=true
 ```
 
-After the first deploy, seed the live database **once**, from your machine (set the same `MONGODB_URI` and `MONGODB_DB=taskmanager_live` in your shell or in a copy of `.env`):
+After the first deploy, seed the live database **once**, from your machine (set `MONGODB_URI`, `MONGODB_DB=taskmanager_live`, `JWT_ACCESS_SECRET` and `FRONTEND_ORIGINS` in your shell first; shell values override `backend/.env`):
 
 ```bash
 cd backend && npm run seed
@@ -183,9 +183,13 @@ Open `https://<your-service>.onrender.com/api/health`. It should return `{"statu
 
 ### 3. Frontend on Vercel
 
-1. Edit `frontend/vercel.json` and replace `YOUR-RENDER-SERVICE` with your Render service name, then commit and push. (`vercel.json` cannot read environment variables, so the backend URL is written in the file.)
-2. In Vercel import the same GitHub repository. Set **Root Directory** to `frontend`. Framework preset: Vite. Build command `npm run build`, output directory `dist`.
+1. In Vercel import the same GitHub repository. Set **Root Directory** to `frontend`. Framework preset: Vite. Build command `npm run build`, output directory `dist`.
+2. Add the environment variable `BACKEND_URL` = `https://<your-service>.onrender.com` (no trailing slash, no `/api`) **before** the first deploy. A build step (`frontend/scripts/write-vercel-config.mjs`) turns it into the `/api/*` proxy rule and fails the build if it is missing or malformed.
 3. Deploy, then copy the Vercel URL into `FRONTEND_ORIGINS` on Render and redeploy the backend.
+
+For a local production build use `BACKEND_URL=http://localhost:4000 npm run build` inside `frontend/`.
+
+A step-by-step checklist with the final live checks is in [docs/DEPLOY-RUNBOOK.md](docs/DEPLOY-RUNBOOK.md).
 
 ### 4. Keep the free backend awake (optional)
 
